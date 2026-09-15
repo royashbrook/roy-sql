@@ -1,0 +1,24 @@
+name: test
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  cold:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned dependency and test
+        shell: pwsh
+        run: |
+          & ./scripts/install-scriptdom.ps1
+          & ./scripts/install-scriptdom.ps1
+          $assembly = (Resolve-Path ./scripts/lib/Microsoft.SqlServer.TransactSql.ScriptDom.dll).Path
+          & ./tests/formatter.ps1 -AssemblyPath $assembly
+          & ./tests/cli.ps1 -AssemblyPath $assembly
