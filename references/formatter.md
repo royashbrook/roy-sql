@@ -66,7 +66,9 @@ execution equivalence**. No SQL executes during formatting or the test suite.
 
 Default mode first tries structural formatting. When that is unavailable, its fallback
 organizes recognizable clause boundaries, projection/definition lists and parenthesized
-query blocks. Unknown words and operators retain their order. Inline spacing is conservative
+query blocks. A multi-column SELECT pads its first item to align with the names after
+leading commas; single-column lists do not. Nested SELECTs count independently.
+Unknown words and operators retain their order. Inline spacing is conservative
 because a T-SQL token boundary may split another dialect's operator. Comments and quoted
 text are preserved; unclosed literals can cause the entire input to remain unchanged.
 This is not full support for PostgreSQL, MySQL or arbitrary pseudocode, and layout may be
@@ -103,7 +105,7 @@ pwsh -NoProfile -File tests/cli.ps1 -AssemblyPath /path/to/ScriptDom.dll
 ```
 
 Exact layout fixtures, idempotence and safe-refusal checks use synthetic SQL. CI installs
-the pinned dependency and runs both suites cold on Windows, macOS and Linux.
+the pinned dependency and runs all three suites cold on Windows, macOS and Linux.
 `-Check` checks for changes this formatter would make, not every prose rule in the skill.
 A stable formatting bug can pass `-Check`; expected-output regression tests catch those mistakes.
 

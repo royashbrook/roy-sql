@@ -61,6 +61,10 @@ AND tbl.created_at BETWEEN TIMESTAMP '2026-01-01 00:00:00' AND CURRENT_TIMESTAMP
 GROUP BY tbl.id, tbl.details->>'email', tbl.updated_at, tbl.created_at;
 '@
     limit = "select u.id, u.first_name from users u where u.status='COMPLETED' order by u.id limit 50;"
+    single = "select coalesce(a, b) from t limit 1;"
+    nested = "select (select a, b from t limit 1), c from u limit 2;"
+    nestedSingle = "select (select a, b from t limit 1) from u limit 2;"
+    review = "select u.id,u.first_name,u.last_name,o.order_date,o.total_amount from users u inner join orders o on u.id=o.user_id where o.status='COMPLETED' and o.order_date>='2026-01-01' order by o.total_amount desc limit 50;"
     incomplete = 'select from'
     unclosed = "select 'unterminated"
     identifiers = 'select Limit, Zone, False, dbo.DATE_TRUNC(d), [FALSE] from t'
@@ -83,8 +87,12 @@ foreach ($sample in $samples.GetEnumerator()) {
             if ($actual -cnotmatch 'date_trunc\(' -or $actual -cnotmatch 'is_cancelled = false' -or $actual -notmatch '\), TopCustomers as \(') { throw 'window/CTE style failed' }
         }
         ddl { if (!$warning -or !$actual.Contains('ROUTINE_ADJUSTMENT') -or $actual -notmatch '\r?\n {4}, product_sku') { throw 'DDL fallback failed' } }
-        operators { if (!$warning -or $actual -notmatch "->>\s*'email'" -or !$actual.Contains('"Audit"."UserLogs"') -or !$actual.Contains('/* Block comment test */')) { throw "operator/comment retention failed: $warning`n$actual" } }
-        limit { if (!$warning -or $actual -notmatch 'limit\r?\n {4}50' -or $actual -match 'top') { throw 'LIMIT was lost or translated' } }
+        operators { if (!$warning -or $actual -notmatch "->>\s*'email'" -or !$actual.Contains('"Audit"."UserLogs"') -or !$actual.Contains('/* Block comment test */') -or $actual -notmatch '\r?\n {6}tbl.id') { throw "operator/comment retention failed: $warning`n$actual" } }
+        limit { if (!$warning -or $actual -notmatch 'limit\r?\n {4}50' -or $actual -match 'top' -or $actual -notmatch 'select\r?\n {6}u.id\r?\n {4}, u.first_name') { throw 'LIMIT layout failed' } }
+        single { if (!$warning -or $actual -notmatch 'select\r?\n {4}coalesce\(a, b\)') { throw 'function comma padded a single projection' } }
+        nested { if (!$warning -or $actual -notmatch 'select\r?\n {6}\(' -or $actual -notmatch 'select\r?\n {14}a\r?\n {12}, b' -or $actual -notmatch '\r?\n {4}, c') { throw "nested projection alignment failed:`n$actual" } }
+        nestedSingle { if (!$warning -or $actual -notmatch 'select\r?\n {4}\(' -or $actual -notmatch 'select\r?\n {14}a\r?\n {12}, b') { throw 'nested commas padded a single outer projection' } }
+        review { if (!$warning -or $actual -notmatch 'select\r?\n {6}u.id\r?\n {4}, u.first_name' -or $actual -notmatch '\r?\n {4}, o.total_amount' -or !$actual.Contains("'COMPLETED'")) { throw 'review query alignment or literal retention failed' } }
         unclosed { if ($actual -cne $sample.Value -or $warning -notmatch 'preserved unchanged') { throw 'unclosed literal was damaged' } }
         identifiers { if (!$actual.Contains('Limit') -or !$actual.Contains('Zone') -or !$actual.Contains('False') -or !$actual.Contains('dbo.DATE_TRUNC')) { throw 'identifiers changed' } }
         punctuation { if ($actual -notmatch "#>>\s*'\{a\}'" -or $actual -notmatch '::\s*text' -or $actual -notmatch '- -\s*2') { throw "punctuation changed:`n$actual" } }

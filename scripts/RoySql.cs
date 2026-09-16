@@ -484,8 +484,8 @@ public static class RoySql
 
     sealed class LooseScope
     {
-        public int Indent;
-        public bool Block, Columns, Between;
+        public int Indent, ProjectionStart = -1;
+        public bool Block, Columns, Between, FirstProjection;
         public string Clause = "";
     }
 
@@ -509,6 +509,7 @@ public static class RoySql
             var p = prior >= 0 ? tokens[prior].Text.ToLowerInvariant() : "";
             var next = i + 1 < tokens.Count ? tokens[i + 1].Text.ToLowerInvariant() : "";
             var scope = scopes.Peek();
+            bool firstProjection = scope.FirstProjection && !Comment(token);
             var indent = scope.Indent + (scope.Clause.Length > 0 ? 4 : 0);
             // Keep inline spacing: a T-SQL token boundary need not be a boundary in another dialect.
             string gap = prior < 0 ? "" : sql.Substring(tokens[prior].Offset + tokens[prior].Text.Length,
@@ -546,6 +547,8 @@ public static class RoySql
                     gap = line(scope.Indent + (scopes.Count > 1 ? 4 : 0));
                     scope.Clause = word;
                     scope.Between = false;
+                    scope.FirstProjection = word == "select";
+                    scope.ProjectionStart = -1;
                     if (!pair) planned = line(scope.Indent + (scopes.Count > 1 ? 8 : 4));
                 }
                 else if (word == "by" && (p == "order" || p == "group")) planned = line(scope.Indent + (scopes.Count > 1 ? 8 : 4));
@@ -559,11 +562,26 @@ public static class RoySql
                 else if (word == "and" && scope.Between) scope.Between = false;
                 else if ((word == "and" || word == "or") && (scope.Clause == "where" || scope.Clause == "having" || scope.Clause == "join"))
                     gap = line(scope.Indent + (scope.Clause == "join" ? 8 : 4));
-                else if (word == "," && (scope.Clause == "select" || scope.Columns)) { gap = line(scope.Indent + 4); planned = " "; }
+                else if (word == "," && (scope.Clause == "select" || scope.Columns))
+                {
+                    // Only a comma in this SELECT's scope proves that its first item needs padding.
+                    if (scope.Clause == "select" && scope.ProjectionStart >= 0)
+                    {
+                        output.Insert(scope.ProjectionStart, "  ");
+                        scope.ProjectionStart = -1;
+                    }
+                    gap = line(scope.Indent + (scope.Clause == "select" && scopes.Count > 1 ? 8 : 4));
+                    planned = " ";
+                }
                 else if (word == ";") { scope.Clause = ""; planned = newline + newline; }
             }
             if (prior >= 0 && tokens[prior].TokenType == TSqlTokenType.SingleLineComment) gap = line(indent);
             if (prior < 0) gap = "";
+            if (firstProjection)
+            {
+                scope.ProjectionStart = output.Length + gap.Length;
+                scope.FirstProjection = false;
+            }
             output.Append(gap).Append(LooseText(tokens, i));
             prior = i;
         }
