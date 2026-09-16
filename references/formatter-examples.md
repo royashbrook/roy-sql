@@ -85,3 +85,101 @@ select
 from
     [order details]
 ```
+
+## CASE is a block
+
+Before:
+
+```sql
+SELECT CASE WHEN amount > 100 THEN 'High' WHEN amount > 50 THEN 'Medium' ELSE 'Low' END AS tier FROM totals
+```
+
+After:
+
+```sql
+select
+    [tier] = case
+        when amount > 100 then 'High'
+        when amount > 50 then 'Medium'
+        else 'Low'
+    end
+from
+    totals
+```
+
+## JOIN alignment and literal TOP
+
+Before:
+
+```sql
+SELECT TOP (50) o.id FROM orders o INNER JOIN items i ON i.orderid=o.id LEFT JOIN products p ON p.id=i.productid
+```
+
+After:
+
+```sql
+select top 50
+    o.id
+from
+    orders o
+    join items i on
+        i.orderid = o.id
+    left join products p on
+        p.id = i.productid
+```
+
+## Adjacent CTEs
+
+Before:
+
+```sql
+WITH a AS (SELECT id FROM orders), b AS (SELECT id FROM a) SELECT id FROM b
+```
+
+After:
+
+```sql
+;with a as (
+
+    select
+        id
+    from
+        orders
+
+), b as (
+
+    select
+        id
+    from
+        a
+
+)
+
+select
+    id
+from
+    b
+```
+
+## LIMIT is retained, not translated
+
+Before:
+
+```sql
+SELECT id FROM orders ORDER BY id LIMIT 50;
+```
+
+After:
+
+```sql
+select
+    id
+from
+    orders
+order by
+    id
+limit
+    50;
+```
+
+Best-effort output. A diagnostic is written to stderr, not into the SQL.

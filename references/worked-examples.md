@@ -23,16 +23,16 @@ This illustrates authoring, not permission for a formatter to move predicates.
 ```sql
 from
     [order details] od
-        join products p on
-            p.productid = od.productid
-            and p.discontinued = 0
+    join products p on
+        p.productid = od.productid
+        and p.discontinued = 0
 where
     od.orderid = @orderid
 ```
 
 ## 3. CTE spacing and chaining
 
-Blank lines inside each CTE, a leading comma for the next, and a short comment naming its purpose.
+Blank lines inside each CTE, with the next name on the closing line: `), ordrollup as (`.
 The second CTE uses only the orders selected by `gd`. The final SELECT is omitted.
 
 ```sql
@@ -45,18 +45,16 @@ The second CTE uses only the orders selected by `gd`. The final SELECT is omitte
     where
         shippeddate is not null
 
-)
+), ordrollup as (
 
--- line counts for shipped orders
-, ordrollup as (
-
+    -- line counts for shipped orders
     select
           gd.orderid
         , [linecount] = count(*)
     from
         gd
-            join [order details] od on
-                od.orderid = gd.orderid
+        join [order details] od on
+            od.orderid = gd.orderid
     group by gd.orderid
 
 )
@@ -70,16 +68,16 @@ the same customer's greatest order ID below the current one.
 ```sql
 from
     orders o
-        outer apply (
-            select top 1
-                  [previous_orderid]   = oo.orderid
-                , [previous_orderdate] = oo.orderdate
-            from
-                orders oo
-            where
-                oo.customerid = o.customerid
-                and oo.orderid < o.orderid
-            order by
-                oo.orderid desc
-        ) po
+    outer apply (
+        select top 1
+              [previous_orderid]   = oo.orderid
+            , [previous_orderdate] = oo.orderdate
+        from
+            orders oo
+        where
+            oo.customerid = o.customerid
+            and oo.orderid < o.orderid
+        order by
+            oo.orderid desc
+    ) po
 ```

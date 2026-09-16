@@ -1,6 +1,6 @@
 # roy-sql
 
-My SQL house style, as an agent skill and a local T-SQL formatter.
+My SQL house style, as an agent skill and a local SQL-like formatter with T-SQL awareness.
 Lowercase keywords, leading commas, alias-first projections, expanded joins and CTEs.
 Plain SQL, comments that explain why, no query redesign disguised as formatting.
 
@@ -24,6 +24,7 @@ From the repository directory:
 ```powershell
 pwsh -NoProfile -File scripts/install-scriptdom.ps1
 pwsh -NoProfile -File scripts/format-sql.ps1 -Path query.sql
+pwsh -NoProfile -File scripts/format-sql.ps1 -Path query.sql -Strict
 pwsh -NoProfile -File scripts/format-sql.ps1 -Path query.sql -Check
 ```
 
@@ -31,12 +32,15 @@ The first command downloads a hash-pinned Microsoft ScriptDOM dependency. The fo
 then runs locally, with no model, database, network call or input-file edit. Its implementation
 is visible PowerShell and C# source; no separate .NET SDK is needed.
 
-SQL goes to stdout. Diagnostics go to stderr. Exit 0 means success, 1 means check-mode
-drift, 2 means refusal or setup failure. Save stdout to a different file, never the input path.
+SQL goes to stdout. Diagnostics go to stderr. Omit `-Path` to pipe SQL on stdin.
+Exit 0 means output produced, 1 means check-mode drift, 2 means strict refusal or an
+operational failure. Save stdout to a different file, never the input path.
 
-The mechanical helper covers **T-SQL SELECTs**, not all of the skill's authoring guidance.
-Unsupported syntax, including USE, DML, DDL and UNION, refuses with no partial SQL.
-Preservation checks are not proof that a query returns the same results on a database.
+Recognized **T-SQL SELECTs** get structural formatting. Unfamiliar syntax, DDL and incomplete
+SQL get conservative token layout with a warning, or unchanged input if tokenization is unsafe.
+`-Strict` retains the original SELECT-focused refusal behavior and emits no partial SQL.
+Neither mode executes SQL or proves database validity. There is no dialect translation:
+LIMIT stays LIMIT. Missing files/dependencies and write failures still report errors.
 See [coverage, checks and limitations](references/formatter.md).
 
 ## License

@@ -2,6 +2,7 @@
 param(
     [string]$Path,
     [Alias('check')][switch]$CheckOnly,
+    [switch]$Strict,
     [string]$AssemblyPath = "$PSScriptRoot/lib/Microsoft.SqlServer.TransactSql.ScriptDom.dll"
 )
 $ErrorActionPreference = 'Stop'
@@ -14,10 +15,12 @@ try {
         Add-Type -Path "$PSScriptRoot/RoySql.cs" -ReferencedAssemblies $references
     }
     $sql = if ($Path) { [IO.File]::ReadAllText($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)) } else { [Console]::In.ReadToEnd() }
-    $formatted = [RoySql]::Format($sql)
+    $warning = $null
+    $formatted = [RoySql]::Format($sql, [bool]$Strict, [ref]$warning)
+    if ($warning) { [Console]::Error.WriteLine($warning) }
     if ($CheckOnly) { if ($formatted -cne $sql) { exit 1 }; exit 0 }
     [Console]::Out.Write($formatted)
 } catch {
-    [Console]::Error.WriteLine($_.Exception.Message)
+    [Console]::Error.WriteLine($_.Exception.GetBaseException().Message)
     exit 2
 }
