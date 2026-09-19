@@ -21,4 +21,5 @@ jobs:
           & ./scripts/install-scriptdom.ps1
           $assembly = (Resolve-Path ./scripts/lib/Microsoft.SqlServer.TransactSql.ScriptDom.dll).Path
           & ./tests/formatter.ps1 -AssemblyPath $assembly
+          & ./tests/feedback.ps1 -AssemblyPath $assembly
           & ./tests/cli.ps1 -AssemblyPath $assembly

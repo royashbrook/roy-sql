@@ -3,7 +3,7 @@ name: roy-sql
 description: "Write or reformat SQL in the roy-sql house style: lowercase keywords, leading commas, alias-first projections, expanded joins and CTEs, and comments that explain why. Use for roy-sql, match my SQL style, or format this query in this profile. Includes an optional local T-SQL formatter. Preserve existing names and values when reformatting; this is not a database execution or query optimization tool."
 license: MIT
 metadata:
-  version: 2.27.0
+  version: 2.28.0
   publishable: true
 ---
 
@@ -15,9 +15,9 @@ When they conflict, the principle wins. Read principles before mechanics.
 New to the terms? [roy-sql, in plain language](references/style-explained.md) explains each
 piece with a small example, and separates formatting from query-design choices.
 
-For deterministic expanded T-SQL layout, the [formatter guide](references/formatter.md)
-documents the local helper, its admitted syntax and safe refusals.
-The compact authoring latitude below is not part of its v1 output.
+For expanded T-SQL layout with best-effort handling of unfamiliar SQL-like text, the
+[formatter guide](references/formatter.md) documents the local helper and optional strict mode.
+The compact authoring latitude below is not part of its automatic output.
 
 ## Two modes: authoring vs reformatting
 
@@ -212,7 +212,26 @@ declare @orderid int = try_cast(
 Default to `left(name, 2)`: no space before `(` or just inside either parenthesis.
 Hand-formatted SQL may use `left( name, 2 )`, or tier long nested calls across lines with
 their closing parentheses on separate lines. This is readability latitude, not a fixed-width
-rule. The mechanical v1 formatter uses the tight default; automatic nested-call wrapping is deferred.
+rule. The mechanical formatter uses the tight default; automatic nested-call wrapping is deferred.
+
+## CASE blocks and TOP
+
+Treat `case` / `end` as a block: put each `when` and `else` one indent unit inside,
+and close with `end` at the expression's base indentation. Nested CASEs nest another unit.
+Very short hand-written CASEs may stay inline. No universal length cutoff is established;
+the mechanical formatter expands CASEs rather than guessing that exception.
+
+```sql
+    [tier] = case
+        when amount > 100 then 'high'
+        when amount > 50 then 'medium'
+        else 'low'
+    end
+```
+
+Use `select top 50`, not `select top (50)`, for an integer row count. Parentheses around
+variable/calculated TOP expressions are retained by the formatter. Do not translate another
+dialect's LIMIT to TOP: that is not formatting.
 
 ## Column lists
 
@@ -254,19 +273,20 @@ Apply these to tables, subqueries/apply blocks and CTEs:
 
 ## FROM and joins
 
-`from` stands alone. The first table is one unit in, join targets another unit in,
-and each ON condition another unit in. `on` ENDS the join line. Put the new table on
+`from` stands alone. The first table and every JOIN/APPLY are one unit in, aligned with
+each other. ON conditions are one further unit in. Write `join`, not `inner join`;
+LEFT/RIGHT/FULL/CROSS qualifiers retain their meaning. `on` ENDS the join line. Put the new table on
 the LEFT of `=` and established/parent table on the RIGHT (`od.orderid = o.orderid`).
 Order joins down the domain hierarchy: orders → details → products → categories.
 
 ```sql
 from
     orders o
-        join [order details] od on
-            od.orderid = o.orderid
-        join products p on
-            p.productid = od.productid
-            and p.discontinued = 0
+    join [order details] od on
+        od.orderid = o.orderid
+    join products p on
+        p.productid = od.productid
+        and p.discontinued = 0
 where
     o.orderid = @orderid
     and o.shippeddate is not null
@@ -309,29 +329,28 @@ collapse expanded SQL just because it fits. When uncertain, expand.
     where
         shippeddate is not null
 
-)
+), withbev as (
 
--- orders containing at least one beverages line
-, withbev as (
-
+    -- orders containing at least one beverages line
     select
         gd.orderid
     from
         gd
-            join [order details] od on
-                od.orderid = gd.orderid
-            join products p on
-                p.productid = od.productid
-            join categories c on
-                c.categoryid = p.categoryid
-                and c.categoryname = 'beverages'
+        join [order details] od on
+            od.orderid = gd.orderid
+        join products p on
+            p.productid = od.productid
+        join categories c on
+            c.categoryid = p.categoryid
+            and c.categoryname = 'beverages'
 
 )
 ```
 
 Use a new-line `;with` to defend against a prior batch without `go`. Keep one blank
-line after each opening `(` and before its closing `)`. Subsequent CTEs have a leading
-comma and a short `--` comment above naming what they find/exclude.
+line after each opening `(` and before its closing `)`. Chain the next CTE on the closing
+line: `), next as (`. No blank line between CTEs. A short purpose comment can go inside
+the next CTE's body; preserve existing comments when reformatting.
 CTE names are pure lowercase without underscores by default, snake_case when ambiguity
 or meaningful prefixes warrant it (`ord_rev`, `ord_pay`), PascalCase last resort.
 The scoping CTE is conventionally `gd` (good/got data).
@@ -390,8 +409,8 @@ Projection brackets and alias rules apply inside subqueries too.
 ## Indentation
 
 One **tab-over unit per construct**, not a single indent per file. Clause keywords sit
-at their block level, contents one unit in, joins one further unit from FROM's contents,
-ON conditions one further unit, and CTE bodies one unit from their opening line.
+at their block level, contents one unit in, joins aligned with FROM's contents,
+ON conditions one further unit in, and CTE bodies one unit from their opening line.
 Use the same width throughout a query. Mechanical output is **4 spaces, no tab bytes**.
 I type tabs converted by my editor, usually to 4 spaces; where tabs can't be typed,
 2 spaces is the minimum visible unit. The rule wins over a conflicting example.

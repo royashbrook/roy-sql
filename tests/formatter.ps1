@@ -21,8 +21,8 @@ select
     , [Total] = sum(od.Price * od.Quantity)
 from
     Orders o
-        join Details od on
-            od.OrderID = o.OrderID
+    join Details od on
+        od.OrderID = o.OrderID
 where
     o.OrderID = @OrderID
     and o.ShippedDate is not null
@@ -45,16 +45,16 @@ select
     , p.b
 from
     t o
-        outer apply (
-            select top 1
-                x.b
-            from
-                t x
-            where
-                x.a = o.a
-            order by
-                x.b desc
-        ) p
+    outer apply (
+        select top 1
+            x.b
+        from
+            t x
+        where
+            x.a = o.a
+        order by
+            x.b desc
+    ) p
 
 '@
 Test-Format 'preamble' "-- keep guard`nset transaction isolation level read uncommitted`nset deadlock_priority -10`nset nocount on`ndeclare @orderid int = try_cast('123' as int)`nselect @orderid"
@@ -200,7 +200,7 @@ foreach ($nl in @("`n", "`r`n")) {
     $sql = @('select a.id', 'from things a', 'outer apply (', '    -- first explanation', '    -- second explanation', '    select top 1 b.id', '    from things b', '    where b.id = a.id', ') found') -join $nl
     Test-Format 'nested full-line comment block' $sql
     $comments = @([RoySql]::Format($sql) -split '\r?\n' | Where-Object { $_ -match '^\s*--' })
-    if ($comments.Count -ne 2 -or @($comments | Where-Object { $_ -match '^ {12}--' }).Count -ne 2) { throw 'comment block indentation differs' }
+    if ($comments.Count -ne 2 -or @($comments | Where-Object { $_ -match '^ {8}--' }).Count -ne 2) { throw 'comment block indentation differs' }
 }
 Test-Format 'predicate comment block' "select a from t where`n-- first`n/* second */`na=1" @'
 select
@@ -230,6 +230,71 @@ select
     , dbo.MyFunction(Value)
 from
     Things
+
+'@
+Test-Format 'literal TOP and implicit inner join' 'select top (50) a.id from things a inner join others b on b.id=a.id' @'
+select top 50
+    a.id
+from
+    things a
+    join others b on
+        b.id = a.id
+
+'@
+Test-Format 'expanded CASE' "select case when x > 10 then 'High' when x between 5 and 10 then 'Middle' else 'Low' end as tier from t" @'
+select
+    [tier] = case
+        when x > 10 then 'High'
+        when x between 5 and 10 then 'Middle'
+        else 'Low'
+    end
+from
+    t
+
+'@
+Test-Format 'nested CASE' 'select case when x=1 then case y when 2 then 3 else 4 end else 5 end as result from t'
+Test-Format 'TOP expressions remain parenthesized' 'select top (@n + 1) a from t'
+Test-Format 'TOP without source whitespace' 'SELECT TOP(50)id FROM things' @'
+select top 50
+    id
+from
+    things
+
+'@
+Test-Format 'TOP percent without source whitespace' 'SELECT TOP(10)PERCENT id FROM things'
+Test-Format 'TOP comments retained' 'select top (/* count */ 50) a from t'
+Test-Format 'join qualifier comment retained' 'select a.id from t a inner /* join reason */ join u b on b.id=a.id'
+Test-Format 'adjacent CTEs' 'with a as (select x from t), b as (select x from a) select x from b' @'
+;with a as (
+
+    select
+        x
+    from
+        t
+
+), b as (
+
+    select
+        x
+    from
+        a
+
+)
+
+select
+    x
+from
+    b
+
+'@
+Test-Format 'known common functions and quoted names' "select DATE_TRUNC('month', d), dbo.DATE_TRUNC(d), [FALSE], [Limit] from t" @'
+select
+      date_trunc('month', d)
+    , dbo.DATE_TRUNC(d)
+    , [FALSE]
+    , [Limit]
+from
+    t
 
 '@
 Test-Refusal 'USE outside v1' 'use ExampleDatabase; select 1'

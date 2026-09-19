@@ -7,6 +7,10 @@ $examples = [ordered]@{
     'Expanded nested check' = 'SELECT o.orderid FROM orders o WHERE EXISTS (SELECT 1 FROM [order details] od WHERE od.orderid = o.orderid)'
     'Existing predicates stay intact' = "SELECT orderid FROM orders WHERE orderid BETWEEN 10248 AND 10260 AND customerid != 'ALFKI'"
     'List-wide alias alignment' = 'SELECT unitprice * quantity AS gross, unitprice * quantity * (1 - discount) AS discounted_total, discount AS d FROM [order details]'
+    'CASE is a block' = "SELECT CASE WHEN amount > 100 THEN 'High' WHEN amount > 50 THEN 'Medium' ELSE 'Low' END AS tier FROM totals"
+    'JOIN alignment and literal TOP' = 'SELECT TOP (50) o.id FROM orders o INNER JOIN items i ON i.orderid=o.id LEFT JOIN products p ON p.id=i.productid'
+    'Adjacent CTEs' = 'WITH a AS (SELECT id FROM orders), b AS (SELECT id FROM a) SELECT id FROM b'
+    'LIMIT is retained, not translated' = 'SELECT id FROM orders ORDER BY id LIMIT 50;'
 }
 '# Actual formatter output'
 ''
@@ -25,6 +29,8 @@ foreach ($example in $examples.GetEnumerator()) {
     'After:'
     ''
     '```sql'
-    [RoySql]::Format($example.Value).TrimEnd("`r", "`n")
+    $warning = $null
+    [RoySql]::Format($example.Value, $false, [ref]$warning).TrimEnd("`r", "`n")
     '```'
+    if ($warning) { ''; 'Best-effort output. A diagnostic is written to stderr, not into the SQL.' }
 }

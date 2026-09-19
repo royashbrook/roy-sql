@@ -17,10 +17,10 @@ the [worked examples](worked-examples.md) isolate each point in a short SQL exce
 | selective brackets | use SQL Server's square-bracket quoting where a name needs it, and for renamed/computed output labels in this style | `[Customer Name]` or `[total]`, but a plain reference stays `o.orderid` |
 | standalone clause keywords | put a section's opening words on their own line, with its contents underneath | `select` above even one column, `from` above the table, `where` above the conditions; small-query exceptions are in the rules |
 | block indentation | move inward to show that something belongs inside something else | a CTE's query sits one level inside its parentheses |
-| construct-relative indentation | calculate that inward step from the surrounding SQL structure, not the file's left edge | table under `from`, join one level deeper, its conditions another level deeper; normally four spaces per level |
+| construct-relative indentation | calculate that inward step from the surrounding SQL structure, not the file's left edge | table and joins aligned under `from`, conditions one level deeper; normally four spaces per level |
 | vertical alignment | add spaces so related items line up in columns | all output aliases in a SELECT list have their `=` signs in the same column, sized to the longest alias |
 | leading boolean operators | start each additional condition with its joining word | `and o.shippeddate is not null`; preserve parentheses and the order of `and`/`or` |
-| CTE chain | give intermediate queries names so a longer query can be read in stages | `;with gd as (...)` followed by `, totals as (...)`; CTE means common table expression, not a saved table |
+| CTE chain | give intermediate queries names so a longer query can be read in stages | `;with gd as (...)` continues on its closing line as `), totals as (`; CTE means common table expression, not a saved table |
 | comment-friendly layout | give columns and conditions their own lines so they are easier to inspect or temporarily comment out | leading commas and `and` help with later items; the first item still needs care |
 | why-comments | explain a reason the SQL alone cannot tell the reader | explain why a cutoff exists, not that `where` filters rows |
 
